@@ -100,6 +100,13 @@ async def require_admin(user=Depends(get_current_user)):
     return user
 
 
+async def notify(user_id: str, title: str, body: str, listing_id: Optional[str] = None):
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user_id, "title": title, "body": body,
+        "listing_id": listing_id, "read": False, "created_at": now_iso(),
+    })
+
+
 def init_storage(force: bool = False):
     global storage_key
     if storage_key and not force:
@@ -451,6 +458,19 @@ async def delete_listing(listing_id: str, user=Depends(require_seller)):
     return {"ok": True}
 
 
+# ---------- notifications ----------
+@api.get("/notifications")
+async def get_notifications(user=Depends(get_current_user)):
+    items = await db.notifications.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"items": items, "unread": sum(1 for i in items if not i.get("read"))}
+
+
+@api.post("/notifications/read-all")
+async def read_all_notifications(user=Depends(get_current_user)):
+    await db.notifications.update_many({"user_id": user["id"], "read": False}, {"$set": {"read": True}})
+    return {"ok": True}
+
+
 # ---------- admin ----------
 @api.get("/admin/stats")
 async def admin_stats(user=Depends(require_admin)):
@@ -476,9 +496,19 @@ async def admin_sellers(status: Optional[str] = None, user=Depends(require_admin
 async def set_seller_status(seller_id: str, status: str = Query(...), user=Depends(require_admin)):
     if status not in ("approved", "rejected", "suspended", "verified", "pending"):
         raise HTTPException(400, "Invalid status")
-    r = await db.sellers.update_one({"id": seller_id}, {"$set": {"verification_status": status}})
-    if r.matched_count == 0:
+    s = await db.sellers.find_one({"id": seller_id})
+    if not s:
         raise HTTPException(404, "Seller not found")
+    await db.sellers.update_one({"id": seller_id}, {"$set": {"verification_status": status}})
+    texts = {
+        "approved": ("Your business was approved", "Your business is live on ZOZOCIRCLE. Nearby customers can now find your listings."),
+        "verified": ("Your business is verified", "You now have a verified badge on your listings."),
+        "rejected": ("Your business was not approved", "Please review your business details and submit again."),
+        "suspended": ("Your business was suspended", "Your listings are hidden. Contact ZOZOCIRCLE support for details."),
+        "pending": ("Your business is under review", "We are reviewing your business details."),
+    }
+    title, body = texts[status]
+    await notify(s["user_id"], title, body)
     return {"ok": True, "status": status}
 
 
@@ -498,9 +528,19 @@ async def admin_listings(status: Optional[str] = None, user=Depends(require_admi
 async def set_listing_status(listing_id: str, status: str = Query(...), user=Depends(require_admin)):
     if status not in ("approved", "rejected", "pending"):
         raise HTTPException(400, "Invalid status")
-    r = await db.listings.update_one({"id": listing_id}, {"$set": {"status": status}})
-    if r.matched_count == 0:
+    l = await db.listings.find_one({"id": listing_id})
+    if not l:
         raise HTTPException(404, "Listing not found")
+    await db.listings.update_one({"id": listing_id}, {"$set": {"status": status}})
+    s = await db.sellers.find_one({"id": l["seller_id"]})
+    if s:
+        texts = {
+            "approved": (f"“{l['name']}” is approved", "It is now live and can be discovered by nearby customers."),
+            "rejected": (f"“{l['name']}” was not approved", "Please review the details or photos and submit again."),
+            "pending": (f"“{l['name']}” is under review", "We will let you know once it is approved."),
+        }
+        title, body = texts[status]
+        await notify(s["user_id"], title, body, listing_id)
     return {"ok": True, "status": status}
 
 
@@ -549,6 +589,7 @@ async def seed():
     await db.listings.create_index("seller_id")
     await db.listings.create_index([("status", 1), ("active", 1)])
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
+    await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
 
     admin_email = os.environ["ADMIN_EMAIL"].lower()
     admin_pw = os.environ["ADMIN_PASSWORD"]

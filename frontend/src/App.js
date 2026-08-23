@@ -51,7 +51,7 @@ export default function App() {
       <LocationProvider>
         <BrowserRouter>
           <Shell />
-          <Toaster position="top-center" richColors />
+          <Toaster position="bottom-center" offset={92} richColors />
         </BrowserRouter>
       </LocationProvider>
     </AuthProvider>

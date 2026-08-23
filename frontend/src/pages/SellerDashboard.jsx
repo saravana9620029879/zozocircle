@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Eye, MessageCircle, Star, Pencil, Trash2, Power, BadgeCheck, LogOut } from 'lucide-react';
+import { Plus, Eye, MessageCircle, Star, Pencil, Trash2, Power, BadgeCheck, LogOut, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, apiError, money, imgUrl } from '@/lib/api';
+import { shareOnWhatsApp, listingUrl } from '@/lib/share';
+import { NotificationBell } from '@/components/NotificationBell';
 import { useAuth } from '@/context/AuthContext';
 
 export default function SellerDashboard() {
@@ -60,15 +62,18 @@ export default function SellerDashboard() {
     <div className="mx-auto max-w-3xl pb-28" data-testid="seller-dashboard">
       <header className="flex items-center justify-between border-b border-border px-5 py-4">
         <h1 className="text-lg font-bold font-display">Dashboard</h1>
-        <button
-          data-testid="seller-logout"
-          onClick={async () => {
-            await logout();
-            navigate('/');
-          }}
-        >
-          <LogOut className="h-5 w-5 text-muted-foreground" />
-        </button>
+        <div className="flex items-center gap-3">
+          <NotificationBell />
+          <button
+            data-testid="seller-logout"
+            onClick={async () => {
+              await logout();
+              navigate('/');
+            }}
+          >
+            <LogOut className="h-5 w-5 text-muted-foreground" />
+          </button>
+        </div>
       </header>
 
       <div className="px-5 pt-5">
@@ -141,6 +146,22 @@ export default function SellerDashboard() {
                 </div>
               </div>
               <div className="flex shrink-0 flex-col gap-1.5">
+                <a
+                  href={shareOnWhatsApp(l)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid={`share-listing-${l.id}`}
+                  title="Share on WhatsApp"
+                  onClick={(e) => {
+                    if (l.status !== 'approved') {
+                      e.preventDefault();
+                      toast.error('Share once the listing is approved');
+                    }
+                  }}
+                  className="rounded-lg border border-border p-1.5 text-[hsl(var(--wa))]"
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                </a>
                 <Link
                   to={`/seller/listing/${l.id}`}
                   data-testid={`edit-listing-${l.id}`}

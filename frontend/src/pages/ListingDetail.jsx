@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Heart, Share2, Star, MapPin, Clock, BadgeCheck, Check, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, imgUrl, money, distanceLabel, whatsappLink } from '@/lib/api';
+import { shareCaption, listingUrl } from '@/lib/share';
 import { useLoc } from '@/context/LocationContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -64,8 +65,17 @@ export default function ListingDetailPage() {
           </IconBtn>
           <div className="flex gap-2">
             <IconBtn
-              onClick={() => {
-                navigator.clipboard?.writeText(window.location.href);
+              onClick={async () => {
+                const url = listingUrl(l.id);
+                if (navigator.share) {
+                  try {
+                    await navigator.share({ title: l.name, text: shareCaption(l, url), url });
+                    return;
+                  } catch {
+                    return;
+                  }
+                }
+                navigator.clipboard?.writeText(url);
                 toast.success('Link copied');
               }}
               testid="detail-share-btn"
