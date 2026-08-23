@@ -1,0 +1,75 @@
+{
+  "summary": "First full test run of ZOZOCIRCLE (backend + frontend). Created a pytest regression suite (71 tests, 68 passing = 95.8%) covering auth/RBAC, discovery (radius/Haversine/type/category/search/price/rating/sort), listing detail + whatsapp-click, favourites, seller onboarding + listing CRUD + image upload, admin stats/sellers/listings/categories, and bcrypt/cookie checks. Playwright covered Home, Explore, Listing detail, Saved, Auth, Seller onboarding->dashboard->add/edit/toggle/delete listing, Admin (all 4 tabs), Account/logout, PWA and responsiveness (390x844 + 1440). Two CRITICAL frontend/config defects found: (1) the location bottom-sheet is unusable on Home and Explore (manual locality fallback broken), (2) image upload returns 502 because EMERGENT_LLM_KEY is missing from backend/.env, and the UI fails silently. Seed demo state (3 pending sellers/3 pending listings, categories) was restored after testing.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/upload, GET /api/files/{path}", "issue": "EMERGENT_LLM_KEY is absent from /app/backend/.env (and from the container env), so init_storage() -> POST integrations.emergentagent.com/objstore/api/v1/storage/init returns 400 'emergent_key is required' and every upload returns 502 'Image upload failed'. Real image upload for seller listings/logos is completely non-functional.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/auth/login", "issue": "No brute-force protection: 6+ consecutive wrong-password attempts all return 401, no lockout (playbook requires lockout after 5 failures, expected 423/429)."},
+      {"endpoint": "CORS (all endpoints)", "issue": "CORS_ORIGINS=\"*\" in backend/.env while login sets a credentialed httpOnly cookie. Access-Control-Allow-Origin: * + credentials is invalid per spec; browsers drop the cookie for cross-origin calls. Use the explicit preview origin."},
+      {"endpoint": "POST /api/favorites/{listing_id}", "issue": "Accepts a non-existent listing_id and creates a favourite row (returns 200). Orphan rows are silently skipped by GET /api/favorites; should return 404."},
+      {"endpoint": "GET /api/listings", "issue": "min_rating/max_price are applied only when truthy, so radius_km/min_rating=0 style falsy filters are silently ignored (e.g. max_price=0). Low impact but inconsistent."},
+      {"endpoint": "/api/admin/categories", "issue": "No DELETE endpoint - test/typo categories can only be disabled, never removed."},
+      {"endpoint": "/api/seller/*", "issue": "require_seller() also allows role=admin; an admin without a seller profile gets 404s instead of a clear error. Also no GET /api/health or root /api ping for uptime checks."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "LocationPicker (components/LocationBits.jsx) on Home + Explore", "issue": "CRITICAL: the bottom-sheet overlay `fixed inset-0` is contained by the sticky header, which uses `backdrop-blur-xl` (backdrop-filter creates a containing block for fixed descendants). Measured overlay height = 76px on Home and 168px on Explore instead of 844px, so the sheet renders above the viewport (locality buttons at top:-377px) and 'Use my current location' / all locality buttons are unclickable. Since automation/most desktop users have no geolocation permission, the app is stuck on the 'Share your location' gate with no working fallback. Works correctly on /account (no backdrop-blur header). Fix: render the sheet in a React portal to document.body, or remove backdrop-filter from the header.", "selector": "[data-testid=\"location-sheet\"], [data-testid=\"locality-koramangala\"]", "priority": "CRITICAL"},
+      {"component": "AddListing image uploader", "issue": "Upload fails with 502 and the UI shows NO error state - no toast, no error text, no preview; the user cannot tell the upload failed. Add error handling for the /api/upload failure.", "selector": "[data-testid=\"image-file-input\"], [data-testid=\"add-image-btn\"]", "priority": "HIGH"},
+      {"component": "SellerOnboard", "issue": "React warning on submit: 'Cannot update a component (BrowserRouter) while rendering a different component (SellerOnboard)' - a setState/navigate is being called during render.", "selector": "[data-testid=\"seller-onboard-page\"]", "priority": "MEDIUM"},
+      {"component": "SellerDashboard mount", "issue": "GET /api/seller/listings fires and returns 404 twice for a seller with no profile yet (console errors on every fresh seller). Should check profile existence / handle 404 gracefully.", "selector": "[data-testid=\"seller-status-badge\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Manual location fallback (geolocation denied)", "issue": "Cannot be completed from Home or Explore due to the sheet containing-block bug; only workaround is localStorage zz_loc or the /account picker.", "affected_selectors": ["[data-testid=\"location-picker-btn\"]", "[data-testid=\"locality-koramangala\"]", "[data-testid=\"use-my-location-btn\"]"]},
+      {"flow": "Seller image upload -> listing images", "issue": "Upload 502; listings can only be created without images.", "affected_selectors": ["[data-testid=\"image-file-input\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Explore (no location set)", "issues": ["Header reads '21 results within 2 km' while no location is set and no distances are shown - misleading copy; should say 'all nearby sellers' or hide the radius wording until a location exists."]},
+      {"screen": "Home", "issues": ["'More around you' section renders its heading with an empty body when there are no extra items (only 1-2 results in radius) - hide empty sections.", "Category icon strip is horizontally clipped at the right edge on 1440 desktop with no scroll affordance."]},
+      {"screen": "Admin dashboard on desktop", "issues": ["Constrained to max-w-2xl (~672px) centered on 1920px, leaving very large empty margins; the sellers/listings tables would benefit from a wider desktop layout."]},
+      {"screen": "PWA manifest", "issues": ["manifest.json declares only 1 icon; add both 192x192 and 512x512 (plus maskable) for installability."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/conftest.py",
+    "/app/backend/tests/test_auth.py",
+    "/app/backend/tests/test_discovery.py",
+    "/app/backend/tests/test_rbac_favorites.py",
+    "/app/backend/tests/test_seller_flow.py",
+    "/app/backend/tests/test_admin.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Add EMERGENT_LLM_KEY to /app/backend/.env (it is missing) so object-storage init succeeds and POST /api/upload + GET /api/files/{path} work; then re-test seller image upload.",
+    "CRITICAL: Fix the location bottom-sheet - render LocationPicker's sheet through a portal to document.body (or drop backdrop-blur-xl from the Home/Explore sticky headers) so the manual locality fallback works.",
+    "HIGH: Surface an error state (toast/inline text) when /api/upload fails in AddListing/SellerOnboard image uploaders.",
+    "MEDIUM: Replace CORS_ORIGINS=\"*\" with the explicit preview origin since login uses credentialed cookies.",
+    "MEDIUM: Add login brute-force lockout after 5 failed attempts (423/429) per the auth playbook.",
+    "LOW: Return 404 from POST /api/favorites/{id} for unknown listings; fix the setState-during-render warning in SellerOnboard; avoid the 404 /api/seller/listings call before a profile exists; add a DELETE /api/admin/categories/{slug}.",
+    "Optional cleanup: purge leftover docs whose names start with TEST (3 seller profiles now set to 'rejected', 2 disabled 'test-cat-*' categories, and TEST_* users) from MongoDB."
+  ],
+  "critical_code_review_comments": [
+    "components/LocationBits.jsx: a `fixed inset-0` modal must not be nested inside an element with backdrop-filter/transform - use createPortal(document.body).",
+    "server.py: init_storage() raises on every call when EMERGENT_LLM_KEY is unset; log a clear startup-fatal warning and return 503 with an actionable message instead of a generic 502.",
+    "server.py listings(): `if min_rating:` / `if max_price:` should be `is not None` checks.",
+    "server.py: allow_origins from CORS_ORIGINS='*' combined with allow_credentials=True is invalid; cookies will be rejected cross-origin.",
+    "server.py: no rate limiting / lockout on /api/auth/login.",
+    "AddListing.jsx: the upload call has no catch/error UI - every API call needs loading/success/error states."
+  ],
+  "updated_files": [
+    "/app/backend/tests/conftest.py",
+    "/app/backend/tests/test_auth.py",
+    "/app/backend/tests/test_discovery.py",
+    "/app/backend/tests/test_rbac_favorites.py",
+    "/app/backend/tests/test_seller_flow.py",
+    "/app/backend/tests/test_admin.py"
+  ],
+  "success_rate": {"backend": "96% (68/71 pytest; 3 failures = upload 502, no login lockout, wildcard CORS)", "frontend": "85% (all flows verified except manual location sheet on Home/Explore and image upload)"},
+  "seed_data_creation": "Created TEST_ customers/sellers via API and UI (TEST Biz 310e2, TEST Biz 0d7f2, TEST UI Biz 353 - all set to verification_status=rejected so they are not publicly discoverable), plus 2 disabled TEST categories (test-cat-b38df2, test-cat-a26ded). Seed demo state restored: 'food' category re-enabled, 'Doorstep Bike Service' reverted to pending; admin/stats now shows 3 pending sellers and 3 pending listings as designed.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "admin@zozocircle.com / Admin@123; seller1..22@zozocircle.com / Seller@123 (from /app/memory/test_credentials.md - file present and accurate)",
+  "context_for_next_testing_agent": "Verified working: admin login+dashboard (overview stats, approve/verify/reject/suspend seller, approve/reject/delete listing, add category, toggle category incl. disappearing from public GET /api/categories), customer+seller registration, Home (radius 1/2/5 km changes result counts, real Haversine distances, category chips, popular/services sections, images render), Explore (search yoga/tailor, ALL/PRODUCTS/SERVICES tabs, max-price filter), listing detail (name/price/distance/rating/gallery, wa.me link with correct product vs service wording, whatsapp-click increments), Save/Saved/unsave, full seller flow (profile -> pending badge -> add product/service -> toggle -> edit (resets to pending) -> delete), approval makes a listing discoverable within radius (pytest test_seller_flow 14-15), RBAC (401 unauth, 403 customer/seller on admin), bottom nav hidden on /login /register /admin /seller* /listing/*, PWA manifest+sw.js served and 1 SW registration, logout clears zz_token. Because the location sheet is broken on Home/Explore, seed the location with localStorage: zz_loc = {\"lat\":12.9352,\"lng\":77.6245,\"name\":\"Koramangala, Bengaluru\",\"source\":\"manual\"} and zz_radius=5, then reload. Re-run `cd /app/backend && python -m pytest tests/ -v --junitxml=/app/test_reports/pytest/pytest_results.xml` for regression; test_seller_flow.py is order-dependent within its class (module-scoped ctx dict) so keep it on one xdist worker (loadscope already does this).",
+  "rca_of_the_issue": "1) Image upload 502: server.py init_storage() posts {'emergent_key': os.environ.get('EMERGENT_LLM_KEY')} to the object-store /init endpoint; the variable does not exist in /app/backend/.env nor in the pod env, so the proxy responds 400 'emergent_key is required' and upload()/get_file() raise 502/404. Repro: POST /api/upload with any image + a valid seller token. Fix: set EMERGENT_LLM_KEY in backend/.env and restart backend. 2) Location sheet unusable: the sheet's overlay uses `fixed inset-0`, but its ancestor header has `backdrop-blur-xl` (backdrop-filter), which per CSS spec makes that header the containing block for fixed-position descendants. Measured: overlay rect height 76px on Home / 168px on Explore vs viewport 844px; locality buttons land at top:-377px, so Playwright (and real users) cannot click them. /account has no blurred header and the identical sheet works there, confirming the RCA. Fix: portal the sheet to document.body."
+}

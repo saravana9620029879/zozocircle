@@ -1,0 +1,13 @@
+{
+  "short_name": "ZOZOCIRCLE",
+  "name": "ZOZOCIRCLE — Your local circle.",
+  "description": "Discover products and services around you.",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#19613F",
+  "background_color": "#ffffff"
+}

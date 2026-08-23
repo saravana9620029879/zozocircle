@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#19613F" />
+    <meta name="description" content="ZOZOCIRCLE - Your local circle. Discover products and services around you." />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <title>ZOZOCIRCLE — Your local circle.</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run ZOZOCIRCLE.</noscript>
+    <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+      }
+    </script>
+  </body>
+</html>
