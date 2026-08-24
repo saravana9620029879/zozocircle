@@ -208,10 +208,10 @@ const Gate = ({ title, text }) => (
       data-testid="onboard-register-link"
       className="mt-6 block rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground"
     >
-      Login with mobile OTP
+      Login with email OTP
     </Link>
     <p className="mt-3 text-xs text-muted-foreground">
-      Enter your mobile number — we'll create your seller account automatically.
+      Enter your email address — we'll create your seller account automatically.
     </p>
   </div>
 );

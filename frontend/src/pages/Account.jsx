@@ -42,10 +42,10 @@ export default function AccountPage() {
               data-testid="account-login-btn"
               className="block rounded-2xl bg-primary py-3.5 text-center text-sm font-bold text-primary-foreground"
             >
-              Login with mobile OTP
+              Login with email OTP
             </Link>
             <p className="pt-1 text-center text-xs text-muted-foreground">
-              New here? Just enter your mobile number — your account is created automatically.
+              New here? Just enter your email address — your account is created automatically.
             </p>
           </div>
         ) : (

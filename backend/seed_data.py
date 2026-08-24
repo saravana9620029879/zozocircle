@@ -23,6 +23,15 @@ IMG = {
     "salon": "https://images.unsplash.com/photo-1675034743339-0b0747047727?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
     "fitness": "https://images.unsplash.com/photo-1571732154690-f6d1c3e5178a?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
     "gym": "https://images.pexels.com/photos/35341600/pexels-photo-35341600.jpeg?auto=compress&cs=tinysrgb&w=900",
+    "chikki": "https://images.pexels.com/photos/5865648/pexels-photo-5865648.jpeg?auto=compress&cs=tinysrgb&w=900",
+    "tuition": "https://images.pexels.com/photos/7979780/pexels-photo-7979780.jpeg?auto=compress&cs=tinysrgb&w=900",
+    "snacks": "https://images.unsplash.com/photo-1709091052718-3cb8a990edfa?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
+    "handloom": "https://images.unsplash.com/photo-1698755839162-b73e142c0284?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
+    "applrepair": "https://images.pexels.com/photos/31725399/pexels-photo-31725399.jpeg?auto=compress&cs=tinysrgb&w=900",
+    "photography": "https://images.pexels.com/photos/36697247/pexels-photo-36697247.jpeg?auto=compress&cs=tinysrgb&w=900",
+    "bike": "https://images.pexels.com/photos/12741656/pexels-photo-12741656.jpeg?auto=compress&cs=tinysrgb&w=900",
+    "mealbox": "https://images.pexels.com/photos/10078270/pexels-photo-10078270.jpeg?auto=compress&cs=tinysrgb&w=900",
+    "cleaning": "https://images.unsplash.com/photo-1686178827149-6d55c72d81df?q=80&w=2070&auto=format&fit=crop",
 }
 
 CATEGORIES = [
@@ -80,7 +89,7 @@ SELLERS = [
      ]),
     ("Homemade Snacks Co", "Ramya Gowda", "Basavanagudi", 12.9422, 77.5738, "product", "food", "approved",
      "Traditional Karnataka snacks - chakli, nippattu, kodubale and more.", [
-         ("product", "Mixed Snack Box", "food", 260, "500g", "Assorted homemade chakli, nippattu and kodubale, freshly fried.", [IMG["brownie"]], 4.4, 14, "approved", ["Freshly Made"]),
+         ("product", "Mixed Snack Box", "food", 260, "500g", "Assorted homemade chakli, nippattu and kodubale, freshly fried.", [IMG["snacks"]], 4.4, 14, "approved", ["Freshly Made"]),
      ]),
     ("Green Leaf Nursery", "Suresh Babu", "Yelahanka", 13.1007, 77.5963, "product", "plants", "approved",
      "Indoor and outdoor plants, planters and organic potting mix.", [
@@ -96,7 +105,7 @@ SELLERS = [
      ]),
     ("Local Tutor Hub", "Vinay Shetty", "BTM Layout", 12.9166, 77.6101, "service", "education", "approved",
      "Home tuition for CBSE and State board students, classes 6 to 10.", [
-         ("service", "Home Tuition", "education", 3000, "per month", "Maths and Science home tuition for classes 6-10, three sessions a week.", [IMG["yoga2"]], 4.5, 22, "approved", ["Home Visit"]),
+         ("service", "Home Tuition", "education", 3000, "per month", "Maths and Science home tuition for classes 6-10, three sessions a week.", [IMG["tuition"]], 4.5, 22, "approved", ["Home Visit"]),
      ]),
     ("FitStart Personal Training", "Arjun Reddy", "Hebbal", 13.0358, 77.5970, "service", "health", "approved",
      "Personal fitness training at home or nearby park.", [
@@ -104,19 +113,19 @@ SELLERS = [
      ]),
     ("QuickFix Appliance Repair", "Imran Shaikh", "Kammanahalli", 13.0159, 77.6410, "service", "repair", "approved",
      "Same-day repair for washing machines, fridges, microwaves and ACs.", [
-         ("service", "Appliance Repair", "repair", 350, "visit charge", "Same-day home repair for washing machines, refrigerators and microwaves.", [IMG["sewing2"]], 4.4, 27, "approved", ["Same Day", "30 Day Warranty"]),
+         ("service", "Appliance Repair", "repair", 350, "visit charge", "Same-day home repair for washing machines, refrigerators and microwaves.", [IMG["applrepair"]], 4.4, 27, "approved", ["Same Day", "30 Day Warranty"]),
      ]),
     ("Anu's Handloom Corner", "Anuradha Hegde", "Vijayanagar", 12.9719, 77.5300, "product", "fashion", "approved",
      "Handloom cotton sarees, kurtas and stoles from Karnataka weavers.", [
-         ("product", "Handloom Cotton Stole", "fashion", 650, "per piece", "Soft handloom cotton stole woven by Karnataka artisans.", [IMG["soap2"]], 4.5, 8, "approved", ["Handloom", "Natural Dye"]),
+         ("product", "Handloom Cotton Stole", "fashion", 650, "per piece", "Soft handloom cotton stole woven by Karnataka artisans.", [IMG["handloom"]], 4.5, 8, "approved", ["Handloom", "Natural Dye"]),
      ]),
     ("Chikkis & Sweets Home", "Geetha Murthy", "JP Nagar", 12.9063, 77.5857, "product", "food", "approved",
      "Homemade groundnut chikki, dry-fruit laddus and festival sweets.", [
-         ("product", "Groundnut Chikki", "food", 140, "250g", "Crunchy groundnut chikki made with organic jaggery.", [IMG["cake"]], 4.6, 13, "approved", ["Jaggery Based"]),
+         ("product", "Groundnut Chikki", "food", 140, "250g", "Crunchy groundnut chikki made with organic jaggery.", [IMG["chikki"]], 4.6, 13, "approved", ["Jaggery Based"]),
      ]),
     ("Bright Home Cleaning", "Deepa Reddy", "Electronic City", 12.8452, 77.6602, "service", "home", "approved",
      "Deep cleaning for homes, kitchens and bathrooms.", [
-         ("service", "Home Deep Cleaning", "home", 1500, "per 2BHK", "Full home deep cleaning with eco-friendly products and trained staff.", ["https://images.unsplash.com/photo-1686178827149-6d55c72d81df?q=80&w=2070&auto=format&fit=crop"], 4.5, 31, "approved", ["Eco Friendly"]),
+         ("service", "Home Deep Cleaning", "home", 1500, "per 2BHK", "Full home deep cleaning with eco-friendly products and trained staff.", [IMG["cleaning"]], 4.5, 31, "approved", ["Eco Friendly"]),
      ]),
     ("Frames by Nikhil", "Nikhil Bhat", "Sadashivanagar", 13.0067, 77.5810, "service", "home", "pending",
      "Portrait, event and product photography around Bengaluru.", [
@@ -124,10 +133,10 @@ SELLERS = [
      ]),
     ("Amma's Home Food", "Sarala Krishnan", "Domlur", 12.9609, 77.6387, "product", "food", "pending",
      "Daily home-cooked South Indian meals and tiffin boxes.", [
-         ("product", "Daily Meal Box", "food", 120, "per meal", "Home-cooked South Indian meal box with rice, sambar, palya and curd.", [IMG["pickle3"]], 4.8, 4, "pending", ["Freshly Cooked", "Daily Delivery"]),
+         ("product", "Daily Meal Box", "food", 120, "per meal", "Home-cooked South Indian meal box with rice, sambar, palya and curd.", [IMG["mealbox"]], 4.8, 4, "pending", ["Freshly Cooked", "Daily Delivery"]),
      ]),
     ("Wheels Care Bike Service", "Prakash Naik", "Bommanahalli", 12.9010, 77.6180, "service", "auto", "pending",
      "Doorstep two-wheeler servicing and minor repairs.", [
-         ("service", "Doorstep Bike Service", "auto", 550, "per service", "General two-wheeler servicing at your doorstep including oil change.", [IMG["fitness"]], 4.3, 5, "pending", ["Doorstep Service"]),
+         ("service", "Doorstep Bike Service", "auto", 550, "per service", "General two-wheeler servicing at your doorstep including oil change.", [IMG["bike"]], 4.3, 5, "pending", ["Doorstep Service"]),
      ]),
 ]

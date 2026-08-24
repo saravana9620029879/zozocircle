@@ -36,7 +36,7 @@ export default function AdminLogin() {
       </p>
       <h1 className="mt-8 text-3xl font-extrabold font-display">Admin login</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Sellers and customers sign in with a mobile OTP instead.
+        Sellers and customers sign in with an email OTP instead.
       </p>
       <form onSubmit={submit} className="mt-7 space-y-3.5">
         <Input label="Email" type="email" testid="admin-email" value={email} onChange={setEmail} required />
@@ -57,8 +57,7 @@ export default function AdminLogin() {
       </form>
       <p className="mt-6 text-center text-sm">
         <Link to="/login" className="font-semibold text-primary" data-testid="admin-to-otp-login">
-          Login with mobile OTP instead
-        </Link>
+          Login with email OTP instead        </Link>
       </p>
     </div>
   );
