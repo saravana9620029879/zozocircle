@@ -204,14 +204,14 @@ const Gate = ({ title, text }) => (
     <h1 className="text-2xl font-extrabold font-display">{title}</h1>
     <p className="mt-2 text-sm text-muted-foreground">{text}</p>
     <Link
-      to="/register"
+      to="/login"
       data-testid="onboard-register-link"
       className="mt-6 block rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground"
     >
-      Create seller account
+      Login with mobile OTP
     </Link>
-    <Link to="/login" data-testid="onboard-login-link" className="mt-3 block text-sm font-semibold text-primary">
-      I already have an account
-    </Link>
+    <p className="mt-3 text-xs text-muted-foreground">
+      Enter your mobile number — we'll create your seller account automatically.
+    </p>
   </div>
 );

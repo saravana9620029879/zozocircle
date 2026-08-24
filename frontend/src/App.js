@@ -9,15 +9,14 @@ import ListingDetailPage from '@/pages/ListingDetail';
 import SavedPage from '@/pages/Saved';
 import AccountPage from '@/pages/Account';
 import AuthPage from '@/pages/Auth';
+import AdminLogin from '@/pages/AdminLogin';
 import SellerOnboard from '@/pages/SellerOnboard';
 import SellerDashboard from '@/pages/SellerDashboard';
 import SellerProfile from '@/pages/SellerProfile';
 import AddListing from '@/pages/AddListing';
 import AdminDashboard from '@/pages/AdminDashboard';
 
-const HIDE_NAV = ['/login', '/register', '/admin'];
-
-const Shell = () => {
+const HIDE_NAV = ['/login', '/register', '/admin'];const Shell = () => {
   const { pathname } = useLocation();
   const hide =
     HIDE_NAV.some((p) => pathname.startsWith(p)) ||
@@ -31,8 +30,9 @@ const Shell = () => {
         <Route path="/listing/:id" element={<ListingDetailPage />} />
         <Route path="/saved" element={<SavedPage />} />
         <Route path="/account" element={<AccountPage />} />
-        <Route path="/login" element={<AuthPage mode="login" />} />
-        <Route path="/register" element={<AuthPage mode="register" />} />
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/register" element={<AuthPage />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/seller/start" element={<SellerOnboard />} />
         <Route path="/seller/profile" element={<SellerProfile />} />
         <Route path="/seller/listing/:id" element={<AddListing />} />

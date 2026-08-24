@@ -7,6 +7,8 @@ load_dotenv(ROOT_DIR / '.env')
 
 import logging
 import math
+import re
+import secrets
 import uuid
 import bcrypt
 import jwt
@@ -21,6 +23,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 
 from seed_data import CATEGORIES, SELLERS
+from msg91 import send_otp_sms, SmsNotConfigured, SmsSendFailed
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("zozocircle")
@@ -30,6 +33,11 @@ db = client[os.environ['DB_NAME']]
 
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
+OTP_TTL = int(os.environ.get("OTP_TTL_SECONDS", 300))
+OTP_MAX_ATTEMPTS = int(os.environ.get("OTP_MAX_ATTEMPTS", 5))
+OTP_RESEND_COOLDOWN = int(os.environ.get("OTP_RESEND_COOLDOWN_SECONDS", 30))
+OTP_MAX_SENDS_PER_HOUR = int(os.environ.get("OTP_MAX_SENDS_PER_HOUR", 5))
+INDIAN_MOBILE = re.compile(r"^[6-9]\d{9}$")
 APP_NAME = "zozocircle"
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
@@ -100,6 +108,29 @@ async def require_admin(user=Depends(get_current_user)):
     return user
 
 
+def normalize_mobile(raw: str) -> str:
+    """Return a 10-digit Indian mobile number, or raise 400."""
+    digits = re.sub(r"\D", "", raw or "")
+    if digits.startswith("0") and len(digits) == 11:
+        digits = digits[1:]
+    if digits.startswith("91") and len(digits) == 12:
+        digits = digits[2:]
+    if not INDIAN_MOBILE.match(digits):
+        raise HTTPException(400, "Enter a valid 10-digit Indian mobile number")
+    return digits
+
+
+def hash_otp(phone: str, otp: str) -> str:
+    return bcrypt.hashpw(f"{phone}:{otp}".encode(), bcrypt.gensalt()).decode()
+
+
+def verify_otp_hash(phone: str, otp: str, otp_hash: str) -> bool:
+    try:
+        return bcrypt.checkpw(f"{phone}:{otp}".encode(), otp_hash.encode())
+    except Exception:
+        return False
+
+
 async def notify(user_id: str, title: str, body: str, listing_id: Optional[str] = None):
     await db.notifications.insert_one({
         "id": str(uuid.uuid4()), "user_id": user_id, "title": title, "body": body,
@@ -118,14 +149,19 @@ def init_storage(force: bool = False):
 
 
 # ---------- models ----------
-class RegisterIn(BaseModel):
-    name: str
-    email: EmailStr
-    password: str = Field(min_length=6)
+class OtpRequestIn(BaseModel):
+    phone: str
+    name: Optional[str] = None
+
+
+class OtpVerifyIn(BaseModel):
+    phone: str
+    otp: str = Field(min_length=4, max_length=8)
+    name: Optional[str] = None
     role: str = "customer"
 
 
-class LoginIn(BaseModel):
+class AdminLoginIn(BaseModel):
     email: EmailStr
     password: str
 
@@ -167,33 +203,111 @@ class CategoryIn(BaseModel):
     active: bool = True
 
 
-# ---------- auth ----------
-@api.post("/auth/register")
-async def register(body: RegisterIn, response: Response):
-    email = body.email.lower()
-    if body.role not in ("customer", "seller"):
-        raise HTTPException(400, "Invalid role")
-    if await db.users.find_one({"email": email}):
-        raise HTTPException(400, "Email already registered")
-    user = {"id": str(uuid.uuid4()), "name": body.name, "email": email, "role": body.role,
-            "password_hash": hash_password(body.password), "created_at": now_iso()}
-    await db.users.insert_one(dict(user))
-    token = create_access_token(user["id"], email, body.role)
+# ---------- auth (OTP for customers & sellers, password for admin only) ----------
+def issue_session(user: dict, response: Response) -> dict:
+    token = create_access_token(user["id"], user.get("email") or user.get("phone") or "", user["role"])
     response.set_cookie("access_token", token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
-    user.pop("password_hash")
-    user.pop("_id", None)
-    return {"user": user, "token": token}
+    return {
+        "user": {"id": user["id"], "name": user["name"], "email": user.get("email"),
+                 "phone": user.get("phone"), "role": user["role"]},
+        "token": token,
+    }
 
 
-@api.post("/auth/login")
-async def login(body: LoginIn, response: Response):
+@api.post("/auth/otp/request")
+async def request_otp(body: OtpRequestIn):
+    phone = normalize_mobile(body.phone)
+    now = datetime.now(timezone.utc)
+    rec = await db.otp_requests.find_one({"phone": phone})
+
+    if rec:
+        last_sent = datetime.fromisoformat(rec["last_sent_at"])
+        wait = OTP_RESEND_COOLDOWN - int((now - last_sent).total_seconds())
+        if wait > 0:
+            raise HTTPException(429, f"Please wait {wait}s before requesting another OTP")
+        window_start = datetime.fromisoformat(rec["window_start"])
+        if (now - window_start).total_seconds() < 3600 and rec.get("sends_in_window", 0) >= OTP_MAX_SENDS_PER_HOUR:
+            raise HTTPException(429, "Too many OTP requests. Please try again after some time")
+
+    otp = f"{secrets.randbelow(1000000):06d}"
+    try:
+        send_otp_sms(f"91{phone}", otp)
+    except SmsNotConfigured:
+        logger.error("OTP send blocked: MSG91 not fully configured")
+        raise HTTPException(503, "SMS service is not configured yet. Please contact support")
+    except SmsSendFailed:
+        raise HTTPException(502, "Could not send OTP right now. Please try again")
+
+    fresh_window = (not rec) or (now - datetime.fromisoformat(rec["window_start"])).total_seconds() >= 3600
+    await db.otp_requests.update_one(
+        {"phone": phone},
+        {"$set": {
+            "phone": phone,
+            "otp_hash": hash_otp(phone, otp),
+            "expires_at": (now + timedelta(seconds=OTP_TTL)).isoformat(),
+            "attempts": 0,
+            "last_sent_at": now.isoformat(),
+            "window_start": now.isoformat() if fresh_window else rec["window_start"],
+            "sends_in_window": 1 if fresh_window else rec.get("sends_in_window", 0) + 1,
+            "pending_name": (body.name or "").strip() or None,
+        }},
+        upsert=True,
+    )
+    return {"sent": True, "phone": phone, "expires_in": OTP_TTL, "resend_in": OTP_RESEND_COOLDOWN}
+
+
+@api.post("/auth/otp/verify")
+async def verify_otp(body: OtpVerifyIn, response: Response):
+    phone = normalize_mobile(body.phone)
+    rec = await db.otp_requests.find_one({"phone": phone})
+    if not rec:
+        raise HTTPException(400, "Please request an OTP first")
+    if datetime.now(timezone.utc) > datetime.fromisoformat(rec["expires_at"]):
+        await db.otp_requests.delete_one({"phone": phone})
+        raise HTTPException(400, "OTP has expired. Please request a new one")
+    if rec.get("attempts", 0) >= OTP_MAX_ATTEMPTS:
+        raise HTTPException(429, "Too many incorrect attempts. Please request a new OTP")
+    if not verify_otp_hash(phone, body.otp.strip(), rec["otp_hash"]):
+        await db.otp_requests.update_one({"phone": phone}, {"$inc": {"attempts": 1}})
+        left = OTP_MAX_ATTEMPTS - (rec.get("attempts", 0) + 1)
+        raise HTTPException(401, f"Incorrect OTP. {left} attempt(s) left" if left > 0
+                            else "Incorrect OTP. Please request a new one")
+
+    await db.otp_requests.delete_one({"phone": phone})
+    user = await db.users.find_one({"phone": phone})
+    is_new = False
+
+    if not user:
+        # Link an existing seller profile registered with this number (keeps role/listings/data).
+        seller = await db.sellers.find_one({"$or": [{"phone": {"$regex": f"{phone}$"}},
+                                                    {"whatsapp_number": {"$regex": f"{phone}$"}}]})
+        if seller:
+            await db.users.update_one({"id": seller["user_id"]}, {"$set": {"phone": phone}})
+            user = await db.users.find_one({"id": seller["user_id"]})
+
+    if not user:
+        role = body.role if body.role in ("customer", "seller") else "customer"
+        name = (body.name or rec.get("pending_name") or "").strip() or f"ZOZO {phone[-4:]}"
+        user = {"id": str(uuid.uuid4()), "name": name, "phone": phone, "email": None,
+                "role": role, "created_at": now_iso()}
+        await db.users.insert_one(dict(user))
+        is_new = True
+
+    seller = await db.sellers.find_one({"user_id": user["id"]}, {"_id": 0})
+    out = issue_session(user, response)
+    out["is_new_user"] = is_new
+    out["has_seller_profile"] = bool(seller)
+    return out
+
+
+@api.post("/auth/admin/login")
+async def admin_login(body: AdminLoginIn, response: Response):
     email = body.email.lower()
     user = await db.users.find_one({"email": email})
-    if not user or not verify_password(body.password, user["password_hash"]):
-        raise HTTPException(401, "Invalid email or password")
-    token = create_access_token(user["id"], email, user["role"])
-    response.set_cookie("access_token", token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
-    return {"user": {"id": user["id"], "name": user["name"], "email": email, "role": user["role"]}, "token": token}
+    if not user or user.get("role") != "admin" or not user.get("password_hash") \
+            or not verify_password(body.password, user["password_hash"]):
+        raise HTTPException(401, "Invalid admin credentials")
+    return issue_session(user, response)
 
 
 @api.get("/auth/me")
@@ -582,8 +696,10 @@ async def admin_users(user=Depends(require_admin)):
 
 # ---------- startup ----------
 async def seed():
-    await db.users.create_index("email", unique=True)
+    await db.users.create_index("email", unique=True, sparse=True)
+    await db.users.create_index("phone", unique=True, sparse=True)
     await db.users.create_index("id")
+    await db.otp_requests.create_index("phone", unique=True)
     await db.sellers.create_index("user_id")
     await db.sellers.create_index("verification_status")
     await db.listings.create_index("seller_id")

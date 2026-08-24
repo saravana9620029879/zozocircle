@@ -31,28 +31,36 @@ export const AuthProvider = ({ children }) => {
     refresh();
   }, [refresh]);
 
-  const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
-    localStorage.setItem('zz_token', data.token);
-    await refresh();
-    return data.user;
+  const requestOtp = async (phone, name) => {
+    const { data } = await api.post('/auth/otp/request', { phone, name });
+    return data;
   };
 
-  const register = async (payload) => {
-    const { data } = await api.post('/auth/register', payload);
+  const verifyOtp = async ({ phone, otp, name, role }) => {
+    const { data } = await api.post('/auth/otp/verify', { phone, otp, name, role });
+    localStorage.setItem('zz_token', data.token);
+    await refresh();
+    return data;
+  };
+
+  const adminLogin = async (email, password) => {
+    const { data } = await api.post('/auth/admin/login', { email, password });
     localStorage.setItem('zz_token', data.token);
     await refresh();
     return data.user;
   };
 
   const logout = async () => {
+    await api.post('/auth/logout').catch(() => {});
     localStorage.removeItem('zz_token');
     setUser(null);
     setSeller(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, seller, loading, login, register, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ user, seller, loading, requestOtp, verifyOtp, adminLogin, logout, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -48,7 +48,7 @@ export default function AdminDashboard() {
       <div className="px-6 pt-24 text-center" data-testid="admin-denied">
         <h1 className="text-xl font-extrabold font-display">Admin access required</h1>
         <button
-          onClick={() => navigate('/login')}
+          onClick={() => navigate('/admin-login')}
           data-testid="admin-login-redirect"
           className="mt-5 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground"
         >
