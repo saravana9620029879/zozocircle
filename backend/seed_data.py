@@ -116,7 +116,7 @@ SELLERS = [
      ]),
     ("Bright Home Cleaning", "Deepa Reddy", "Electronic City", 12.8452, 77.6602, "service", "home", "approved",
      "Deep cleaning for homes, kitchens and bathrooms.", [
-         ("service", "Home Deep Cleaning", "home", 1500, "per 2BHK", "Full home deep cleaning with eco-friendly products and trained staff.", [IMG["salon"]], 4.5, 31, "approved", ["Eco Friendly"]),
+         ("service", "Home Deep Cleaning", "home", 1500, "per 2BHK", "Full home deep cleaning with eco-friendly products and trained staff.", ["https://images.unsplash.com/photo-1686178827149-6d55c72d81df?q=80&w=2070&auto=format&fit=crop"], 4.5, 31, "approved", ["Eco Friendly"]),
      ]),
     ("Frames by Nikhil", "Nikhil Bhat", "Sadashivanagar", 13.0067, 77.5810, "service", "home", "pending",
      "Portrait, event and product photography around Bengaluru.", [
