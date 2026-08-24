@@ -23,7 +23,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 
 from seed_data import CATEGORIES, SELLERS
-from msg91 import send_otp_sms, SmsNotConfigured, SmsSendFailed
+from resend_email import send_otp_email, EmailNotConfigured, EmailSendFailed
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("zozocircle")
@@ -37,7 +37,6 @@ OTP_TTL = int(os.environ.get("OTP_TTL_SECONDS", 300))
 OTP_MAX_ATTEMPTS = int(os.environ.get("OTP_MAX_ATTEMPTS", 5))
 OTP_RESEND_COOLDOWN = int(os.environ.get("OTP_RESEND_COOLDOWN_SECONDS", 30))
 OTP_MAX_SENDS_PER_HOUR = int(os.environ.get("OTP_MAX_SENDS_PER_HOUR", 5))
-INDIAN_MOBILE = re.compile(r"^[6-9]\d{9}$")
 APP_NAME = "zozocircle"
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
@@ -108,25 +107,21 @@ async def require_admin(user=Depends(get_current_user)):
     return user
 
 
-def normalize_mobile(raw: str) -> str:
-    """Return a 10-digit Indian mobile number, or raise 400."""
-    digits = re.sub(r"\D", "", raw or "")
-    if digits.startswith("0") and len(digits) == 11:
-        digits = digits[1:]
-    if digits.startswith("91") and len(digits) == 12:
-        digits = digits[2:]
-    if not INDIAN_MOBILE.match(digits):
-        raise HTTPException(400, "Enter a valid 10-digit Indian mobile number")
-    return digits
+def normalize_email(raw: str) -> str:
+    """Return a normalised email address, or raise 400."""
+    email = (raw or "").strip().lower()
+    if not re.match(r"^[^@\s]+@[^@\s.]+\.[^@\s]+$", email) or len(email) > 254:
+        raise HTTPException(400, "Enter a valid email address")
+    return email
 
 
-def hash_otp(phone: str, otp: str) -> str:
-    return bcrypt.hashpw(f"{phone}:{otp}".encode(), bcrypt.gensalt()).decode()
+def hash_otp(key: str, otp: str) -> str:
+    return bcrypt.hashpw(f"{key}:{otp}".encode(), bcrypt.gensalt()).decode()
 
 
-def verify_otp_hash(phone: str, otp: str, otp_hash: str) -> bool:
+def verify_otp_hash(key: str, otp: str, otp_hash: str) -> bool:
     try:
-        return bcrypt.checkpw(f"{phone}:{otp}".encode(), otp_hash.encode())
+        return bcrypt.checkpw(f"{key}:{otp}".encode(), otp_hash.encode())
     except Exception:
         return False
 
@@ -150,12 +145,12 @@ def init_storage(force: bool = False):
 
 # ---------- models ----------
 class OtpRequestIn(BaseModel):
-    phone: str
+    email: str
     name: Optional[str] = None
 
 
 class OtpVerifyIn(BaseModel):
-    phone: str
+    email: str
     otp: str = Field(min_length=4, max_length=8)
     name: Optional[str] = None
     role: str = "customer"
@@ -216,9 +211,9 @@ def issue_session(user: dict, response: Response) -> dict:
 
 @api.post("/auth/otp/request")
 async def request_otp(body: OtpRequestIn):
-    phone = normalize_mobile(body.phone)
+    email = normalize_email(body.email)
     now = datetime.now(timezone.utc)
-    rec = await db.otp_requests.find_one({"phone": phone})
+    rec = await db.otp_requests.find_one({"email": email})
 
     if rec:
         last_sent = datetime.fromisoformat(rec["last_sent_at"])
@@ -231,19 +226,19 @@ async def request_otp(body: OtpRequestIn):
 
     otp = f"{secrets.randbelow(1000000):06d}"
     try:
-        send_otp_sms(f"91{phone}", otp)
-    except SmsNotConfigured:
-        logger.error("OTP send blocked: MSG91 not fully configured")
-        raise HTTPException(503, "SMS service is not configured yet. Please contact support")
-    except SmsSendFailed:
-        raise HTTPException(502, "Could not send OTP right now. Please try again")
+        await send_otp_email(email, otp)
+    except EmailNotConfigured:
+        logger.error("OTP send blocked: email integration not configured")
+        raise HTTPException(503, "Email service is not configured yet. Please contact support")
+    except EmailSendFailed:
+        raise HTTPException(502, "Could not send the OTP email right now. Please try again")
 
     fresh_window = (not rec) or (now - datetime.fromisoformat(rec["window_start"])).total_seconds() >= 3600
     await db.otp_requests.update_one(
-        {"phone": phone},
+        {"email": email},
         {"$set": {
-            "phone": phone,
-            "otp_hash": hash_otp(phone, otp),
+            "email": email,
+            "otp_hash": hash_otp(email, otp),
             "expires_at": (now + timedelta(seconds=OTP_TTL)).isoformat(),
             "attempts": 0,
             "last_sent_at": now.isoformat(),
@@ -253,42 +248,34 @@ async def request_otp(body: OtpRequestIn):
         }},
         upsert=True,
     )
-    return {"sent": True, "phone": phone, "expires_in": OTP_TTL, "resend_in": OTP_RESEND_COOLDOWN}
+    return {"sent": True, "email": email, "expires_in": OTP_TTL, "resend_in": OTP_RESEND_COOLDOWN}
 
 
 @api.post("/auth/otp/verify")
 async def verify_otp(body: OtpVerifyIn, response: Response):
-    phone = normalize_mobile(body.phone)
-    rec = await db.otp_requests.find_one({"phone": phone})
+    email = normalize_email(body.email)
+    rec = await db.otp_requests.find_one({"email": email})
     if not rec:
         raise HTTPException(400, "Please request an OTP first")
     if datetime.now(timezone.utc) > datetime.fromisoformat(rec["expires_at"]):
-        await db.otp_requests.delete_one({"phone": phone})
+        await db.otp_requests.delete_one({"email": email})
         raise HTTPException(400, "OTP has expired. Please request a new one")
     if rec.get("attempts", 0) >= OTP_MAX_ATTEMPTS:
         raise HTTPException(429, "Too many incorrect attempts. Please request a new OTP")
-    if not verify_otp_hash(phone, body.otp.strip(), rec["otp_hash"]):
-        await db.otp_requests.update_one({"phone": phone}, {"$inc": {"attempts": 1}})
+    if not verify_otp_hash(email, body.otp.strip(), rec["otp_hash"]):
+        await db.otp_requests.update_one({"email": email}, {"$inc": {"attempts": 1}})
         left = OTP_MAX_ATTEMPTS - (rec.get("attempts", 0) + 1)
         raise HTTPException(401, f"Incorrect OTP. {left} attempt(s) left" if left > 0
                             else "Incorrect OTP. Please request a new one")
 
-    await db.otp_requests.delete_one({"phone": phone})
-    user = await db.users.find_one({"phone": phone})
+    await db.otp_requests.delete_one({"email": email})
+    user = await db.users.find_one({"email": email})
     is_new = False
 
     if not user:
-        # Link an existing seller profile registered with this number (keeps role/listings/data).
-        seller = await db.sellers.find_one({"$or": [{"phone": {"$regex": f"{phone}$"}},
-                                                    {"whatsapp_number": {"$regex": f"{phone}$"}}]})
-        if seller:
-            await db.users.update_one({"id": seller["user_id"]}, {"$set": {"phone": phone}})
-            user = await db.users.find_one({"id": seller["user_id"]})
-
-    if not user:
         role = body.role if body.role in ("customer", "seller") else "customer"
-        name = (body.name or rec.get("pending_name") or "").strip() or f"ZOZO {phone[-4:]}"
-        user = {"id": str(uuid.uuid4()), "name": name, "phone": phone, "email": None,
+        name = (body.name or rec.get("pending_name") or "").strip() or email.split("@")[0]
+        user = {"id": str(uuid.uuid4()), "name": name, "email": email, "phone": None,
                 "role": role, "created_at": now_iso()}
         await db.users.insert_one(dict(user))
         is_new = True
@@ -699,7 +686,7 @@ async def seed():
     await db.users.create_index("email", unique=True, sparse=True)
     await db.users.create_index("phone", unique=True, sparse=True)
     await db.users.create_index("id")
-    await db.otp_requests.create_index("phone", unique=True)
+    await db.otp_requests.create_index("email", unique=True)
     await db.sellers.create_index("user_id")
     await db.sellers.create_index("verification_status")
     await db.listings.create_index("seller_id")

@@ -31,13 +31,13 @@ export const AuthProvider = ({ children }) => {
     refresh();
   }, [refresh]);
 
-  const requestOtp = async (phone, name) => {
-    const { data } = await api.post('/auth/otp/request', { phone, name });
+  const requestOtp = async (email, name) => {
+    const { data } = await api.post('/auth/otp/request', { email, name });
     return data;
   };
 
-  const verifyOtp = async ({ phone, otp, name, role }) => {
-    const { data } = await api.post('/auth/otp/verify', { phone, otp, name, role });
+  const verifyOtp = async ({ email, otp, name, role }) => {
+    const { data } = await api.post('/auth/otp/verify', { email, otp, name, role });
     localStorage.setItem('zz_token', data.token);
     await refresh();
     return data;

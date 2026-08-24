@@ -9,7 +9,7 @@ export default function AuthPage() {
   const { requestOtp, verifyOtp } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState('phone');
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('customer');
   const [otp, setOtp] = useState('');
@@ -31,17 +31,17 @@ export default function AuthPage() {
   const send = async (e) => {
     e?.preventDefault();
     setErr('');
-    if (!/^[6-9]\d{9}$/.test(phone.replace(/\D/g, '').slice(-10)) || phone.replace(/\D/g, '').length < 10) {
-      setErr('Enter a valid 10-digit Indian mobile number');
+    if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email.trim())) {
+      setErr('Enter a valid email address');
       return;
     }
     setBusy(true);
     try {
-      const d = await requestOtp(phone, name);
+      const d = await requestOtp(email.trim(), name);
       setStep('otp');
       setOtp('');
       setCooldown(d.resend_in || 30);
-      toast.success(`OTP sent to +91 ${d.phone}`);
+      toast.success(`OTP sent to ${d.email}`);
     } catch (e2) {
       setErr(apiError(e2));
     }
@@ -57,7 +57,7 @@ export default function AuthPage() {
     }
     setBusy(true);
     try {
-      const d = await verifyOtp({ phone, otp, name, role });
+      const d = await verifyOtp({ email: email.trim(), otp, name, role });
       toast.success(d.is_new_user ? 'Welcome to ZOZOCIRCLE!' : 'Welcome back!');
       if (d.user.role === 'seller') navigate(d.has_seller_profile ? '/seller' : '/seller/start');
       else if (d.is_new_user && role === 'seller') navigate('/seller/start');
@@ -79,7 +79,7 @@ export default function AuthPage() {
           data-testid="change-number-btn"
           className="mb-4 flex items-center gap-1 text-sm font-semibold text-muted-foreground"
         >
-          <ChevronLeft className="h-4 w-4" /> Change number
+          <ChevronLeft className="h-4 w-4" /> Change email
         </button>
       )}
 
@@ -87,30 +87,26 @@ export default function AuthPage() {
       <p className="text-sm text-muted-foreground">Your local circle.</p>
 
       {step === 'phone' ? (
-        <form onSubmit={send} className="mt-8" data-testid="phone-step">
+        <form onSubmit={send} className="mt-8" noValidate data-testid="phone-step">
           <h1 className="text-3xl font-extrabold font-display">Login or sign up</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            We'll send a 6-digit OTP to your mobile number. No password needed.
+            We'll email you a 6-digit code. No password needed.
           </p>
 
           <p className="mb-1.5 mt-7 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            Mobile number
+            Email address
           </p>
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-3.5 py-3 focus-within:border-primary">
-            <span className="text-sm font-bold text-muted-foreground">+91</span>
-            <input
-              data-testid="phone-input"
-              type="tel"
-              inputMode="numeric"
-              autoComplete="tel"
-              maxLength={10}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              placeholder="98765 43210"
-              className="w-full bg-transparent text-sm outline-none"
-              required
-            />
-          </div>
+          <input
+            data-testid="email-input"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="w-full rounded-xl border border-border bg-white px-3.5 py-3 text-sm outline-none focus:border-primary"
+            required
+          />
 
           <p className="mb-1.5 mt-4 text-xs font-bold uppercase tracking-wide text-muted-foreground">
             Your name <span className="font-medium normal-case">(new users only)</span>
@@ -165,10 +161,10 @@ export default function AuthPage() {
           </button>
         </form>
       ) : (
-        <form onSubmit={verify} className="mt-8" data-testid="otp-step">
+        <form onSubmit={verify} className="mt-8" noValidate data-testid="otp-step">
           <h1 className="text-3xl font-extrabold font-display">Enter OTP</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sent to <span className="font-bold text-foreground">+91 {phone}</span>
+            Sent to <span className="font-bold text-foreground">{email.trim()}</span>
           </p>
 
           <input
