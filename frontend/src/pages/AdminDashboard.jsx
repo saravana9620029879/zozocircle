@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Check, X, ShieldOff, BadgeCheck, Trash2, Plus } from 'lucide-react';
+import { LogOut, Check, X, ShieldOff, BadgeCheck, Trash2, Plus, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, apiError, money } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { Badge } from '@/pages/SellerDashboard';
+import { AdminReviewSheet } from '@/components/AdminReviewSheet';
 import { Input } from '@/pages/Auth';
 
 const TABS = ['Overview', 'Sellers', 'Listings', 'Categories'];
@@ -18,6 +19,7 @@ export default function AdminDashboard() {
   const [listings, setListings] = useState([]);
   const [cats, setCats] = useState([]);
   const [newCat, setNewCat] = useState({ name: '', slug: '', icon: 'Tag', applies_to: 'both' });
+  const [review, setReview] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -163,6 +165,7 @@ export default function AdminDashboard() {
                   <Badge status={s.verification_status} />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <Act onClick={() => setReview({ kind: 'seller', data: s })} icon={Eye} label="Review" tid={`review-seller-${s.id}`} />
                   <Act onClick={() => sellerAction(s.id, 'approved')} icon={Check} label="Approve" tid={`approve-seller-${s.id}`} />
                   <Act onClick={() => sellerAction(s.id, 'verified')} icon={BadgeCheck} label="Verify" tid={`verify-seller-${s.id}`} />
                   <Act onClick={() => sellerAction(s.id, 'rejected')} icon={X} label="Reject" tid={`reject-seller-${s.id}`} danger />
@@ -187,6 +190,7 @@ export default function AdminDashboard() {
                   <Badge status={l.status} />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <Act onClick={() => setReview({ kind: 'listing', data: l })} icon={Eye} label="Review" tid={`review-listing-${l.id}`} />
                   <Act onClick={() => listingAction(l.id, 'approved')} icon={Check} label="Approve" tid={`approve-listing-${l.id}`} />
                   <Act onClick={() => listingAction(l.id, 'rejected')} icon={X} label="Reject" tid={`reject-listing-${l.id}`} danger />
                   <Act onClick={() => delListing(l.id)} icon={Trash2} label="Delete" tid={`admin-delete-listing-${l.id}`} danger />
@@ -236,6 +240,25 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+
+      <AdminReviewSheet
+        review={review}
+        onClose={() => setReview(null)}
+        onApprove={async () => {
+          if (review.kind === 'seller') await sellerAction(review.data.id, 'approved');
+          else await listingAction(review.data.id, 'approved');
+          setReview(null);
+        }}
+        onReject={async () => {
+          if (review.kind === 'seller') await sellerAction(review.data.id, 'rejected');
+          else await listingAction(review.data.id, 'rejected');
+          setReview(null);
+        }}
+        onVerify={async () => {
+          await sellerAction(review.data.id, 'verified');
+          setReview(null);
+        }}
+      />
     </div>
   );
 }
