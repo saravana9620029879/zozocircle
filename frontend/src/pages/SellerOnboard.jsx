@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ChevronLeft, Navigation } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, apiError } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { LOCALITIES } from '@/context/LocationContext';
 import { Input } from '@/pages/Auth';
+import { LocalitySelect } from '@/components/LocalitySelect';
 import { ImageUploader } from '@/components/ImageUploader';
 
 export default function SellerOnboard() {
@@ -53,16 +54,6 @@ export default function SellerOnboard() {
     );
   }
   if (seller) return null;
-
-  const useGps = () => {
-    navigator.geolocation?.getCurrentPosition(
-      (pos) => {
-        setF((p) => ({ ...p, lat: pos.coords.latitude, lng: pos.coords.longitude }));
-        toast.success('Location captured (kept private)');
-      },
-      () => toast.error('Could not get location — pick a locality instead')
-    );
-  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -166,33 +157,10 @@ export default function SellerOnboard() {
         </div>
 
         <div>
-          <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Location</p>
-          <select
-            data-testid="seller-locality"
-            value={f.locality}
-            onChange={(e) => {
-              const l = LOCALITIES.find((x) => x.name.split(',')[0] === e.target.value);
-              setF({ ...f, locality: e.target.value, lat: l?.lat ?? f.lat, lng: l?.lng ?? f.lng });
-            }}
-            className="w-full rounded-xl border border-border bg-white px-3.5 py-3 text-sm"
-          >
-            {LOCALITIES.map((l) => (
-              <option key={l.name} value={l.name.split(',')[0]}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            data-testid="seller-use-gps"
-            onClick={useGps}
-            className="mt-2 flex items-center gap-2 text-sm font-semibold text-primary"
-          >
-            <Navigation className="h-4 w-4" /> Use my exact location (kept private)
-          </button>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Your exact address is never shown publicly — customers only see approximate distance.
-          </p>
+          <LocalitySelect
+            value={{ locality: f.locality }}
+            onChange={({ locality, lat, lng }) => setF((p) => ({ ...p, locality, lat, lng }))}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

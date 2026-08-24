@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Star, MapPin, BadgeCheck } from 'lucide-react';
+import { Star, MapPin, BadgeCheck, ImageOff } from 'lucide-react';
 import { imgUrl, money, distanceLabel } from '@/lib/api';
 
 const Fallback = ({ className }) => (
-  <div className={`flex items-center justify-center bg-secondary text-primary/40 ${className}`}>
-    <MapPin className="h-6 w-6" />
+  <div className={`flex flex-col items-center justify-center gap-1 bg-secondary text-primary/40 ${className}`}>
+    <ImageOff className="h-6 w-6" />
+    <span className="text-[9px] font-semibold uppercase tracking-wide">No photo</span>
   </div>
 );
 

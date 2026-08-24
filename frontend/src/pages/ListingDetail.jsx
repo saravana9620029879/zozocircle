@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Heart, Share2, Star, MapPin, Clock, BadgeCheck, Check, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Heart, Share2, Star, MapPin, Clock, BadgeCheck, Check, MessageCircle, ImageOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, imgUrl, money, distanceLabel, whatsappLink } from '@/lib/api';
 import { shareCaption, listingUrl } from '@/lib/share';
@@ -15,6 +15,13 @@ export default function ListingDetailPage() {
   const [l, setL] = useState(null);
   const [saved, setSaved] = useState(false);
   const [active, setActive] = useState(0);
+  const galleryRef = useRef(null);
+
+  const goTo = (i) => {
+    setActive(i);
+    const el = galleryRef.current;
+    if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     api
@@ -54,11 +61,35 @@ export default function ListingDetailPage() {
   return (
     <div className="pb-40" data-testid="listing-detail-page">
       <div className="relative">
-        <div className="h-[300px] w-full overflow-hidden bg-secondary">
-          {l.images?.[active] ? (
-            <img src={imgUrl(l.images[active])} alt={l.name} className="h-full w-full object-cover" />
-          ) : null}
-        </div>
+        {l.images?.length > 0 ? (
+          <div
+            className="no-scrollbar flex h-[300px] w-full snap-x snap-mandatory overflow-x-auto bg-secondary"
+            data-testid="detail-gallery"
+            onScroll={(e) => {
+              const i = Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth);
+              if (i !== active) setActive(i);
+            }}
+            ref={galleryRef}
+          >
+            {l.images.map((src, i) => (
+              <img
+                key={src}
+                src={imgUrl(src)}
+                alt={`${l.name} photo ${i + 1}`}
+                data-testid={`detail-image-${i}`}
+                className="h-full w-full shrink-0 snap-center object-cover"
+              />
+            ))}
+          </div>
+        ) : (
+          <div
+            className="flex h-[300px] w-full flex-col items-center justify-center gap-2 bg-secondary text-primary/50"
+            data-testid="detail-image-placeholder"
+          >
+            <ImageOff className="h-10 w-10" />
+            <p className="text-xs font-semibold">No photo added yet</p>
+          </div>
+        )}
         <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
           <IconBtn onClick={() => navigate(-1)} testid="detail-back-btn">
             <ChevronLeft className="h-5 w-5" />
@@ -90,16 +121,32 @@ export default function ListingDetailPage() {
         {l.images?.length > 1 && (
           <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
             {l.images.map((_, i) => (
-              <button
+              <span
                 key={i}
                 data-testid={`detail-image-dot-${i}`}
-                onClick={() => setActive(i)}
                 className={`h-2 rounded-full transition-all ${i === active ? 'w-5 bg-white' : 'w-2 bg-white/60'}`}
               />
             ))}
           </div>
         )}
       </div>
+
+      {l.images?.length > 1 && (
+        <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pt-3" data-testid="detail-thumbnails">
+          {l.images.map((src, i) => (
+            <button
+              key={src}
+              data-testid={`detail-thumb-${i}`}
+              onClick={() => goTo(i)}
+              className={`h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 transition-colors ${
+                i === active ? 'border-primary' : 'border-transparent opacity-70'
+              }`}
+            >
+              <img src={imgUrl(src)} alt={`Thumbnail ${i + 1}`} className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="px-5 pt-5">
         <span className="rounded-full bg-secondary px-3 py-1 text-xs font-bold capitalize text-secondary-foreground">

@@ -170,7 +170,9 @@ class TestSellerLifecycle:
         assert ctx["product_id"] in by_id, "approved listing still not discoverable"
         assert ctx["service_id"] in by_id
         l = by_id[ctx["product_id"]]
-        assert l["distance_m"] < 500
+        # POST /seller/profile applies a privacy jitter of up to ~1.4 km, so the
+        # observed distance from the picked locality centroid can exceed 500 m.
+        assert l["distance_m"] < 1500
         assert l["seller"]["business_name"] == ctx["business_name"]
         assert l["seller"]["verified"] is False  # approved != verified badge
 

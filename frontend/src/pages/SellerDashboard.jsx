@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Eye, MessageCircle, Star, Pencil, Trash2, Power, BadgeCheck, LogOut, Share2 } from 'lucide-react';
+import { Plus, Eye, MessageCircle, Star, Pencil, Trash2, Power, BadgeCheck, LogOut, Share2, ImageOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, apiError, money, imgUrl } from '@/lib/api';
 import { shareOnWhatsApp, listingUrl } from '@/lib/share';
@@ -123,8 +123,12 @@ export default function SellerDashboard() {
               data-testid={`seller-listing-${l.id}`}
               className="flex items-center gap-3 rounded-2xl border border-border p-3"
             >
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-secondary">
-                {l.images?.[0] && <img src={imgUrl(l.images[0])} alt="" className="h-full w-full object-cover" />}
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-secondary text-primary/40">
+                {l.images?.[0] ? (
+                  <img src={imgUrl(l.images[0])} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <ImageOff className="h-5 w-5" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold">{l.name}</p>

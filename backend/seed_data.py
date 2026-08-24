@@ -120,7 +120,7 @@ SELLERS = [
      ]),
     ("Frames by Nikhil", "Nikhil Bhat", "Sadashivanagar", 13.0067, 77.5810, "service", "home", "pending",
      "Portrait, event and product photography around Bengaluru.", [
-         ("service", "Photography Session", "home", 2500, "per session", "Two-hour portrait or product photography session with edited photos.", [IMG["gym"]], 4.7, 6, "pending", ["Edited Photos"]),
+         ("service", "Photography Session", "home", 2500, "per session", "Two-hour portrait or product photography session with edited photos.", ["https://images.unsplash.com/photo-1549981832-2ba2ee913334?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"], 4.7, 6, "pending", ["Edited Photos"]),
      ]),
     ("Amma's Home Food", "Sarala Krishnan", "Domlur", 12.9609, 77.6387, "product", "food", "pending",
      "Daily home-cooked South Indian meals and tiffin boxes.", [

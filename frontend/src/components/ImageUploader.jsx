@@ -30,11 +30,40 @@ export const ImageUploader = ({ images, setImages, max = 5, testid = 'image-uplo
 
   return (
     <div data-testid={testid}>
-      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Photos</p>
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Photos</p>
+        <p className="text-[11px] text-muted-foreground" data-testid="image-count">
+          {images.length} / {max}
+        </p>
+      </div>
       <div className="flex flex-wrap gap-2.5">
         {images.map((u, i) => (
-          <div key={u} className="relative h-20 w-20 overflow-hidden rounded-xl border border-border">
+          <div
+            key={u}
+            data-testid={`image-preview-${i}`}
+            className={`relative h-20 w-20 overflow-hidden rounded-xl border ${
+              i === 0 ? 'border-2 border-primary' : 'border-border'
+            }`}
+          >
             <img src={imgUrl(u)} alt="" className="h-full w-full object-cover" />
+            {i === 0 ? (
+              <span
+                data-testid="cover-badge"
+                className="absolute inset-x-0 bottom-0 bg-primary/90 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-primary-foreground"
+              >
+                Cover
+              </span>
+            ) : (
+              <button
+                type="button"
+                data-testid={`set-cover-${i}`}
+                title="Make this the cover photo"
+                onClick={() => setImages([u, ...images.filter((x) => x !== u)])}
+                className="absolute inset-x-0 bottom-0 bg-black/60 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-white"
+              >
+                Set cover
+              </button>
+            )}
             <button
               type="button"
               data-testid={`remove-image-${i}`}
@@ -70,6 +99,9 @@ export const ImageUploader = ({ images, setImages, max = 5, testid = 'image-uplo
           {uploadErr}
         </p>
       )}
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        Up to {max} photos. The first photo is the cover customers see on cards.
+      </p>
     </div>
   );
 };
